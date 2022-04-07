@@ -6,14 +6,20 @@ import {
   TouchableOpacity,
   FlatList,
 } from 'react-native';
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import axios from 'axios';
+import EditModal from './EditModal';
+import SubmitModal from './SubmitModal';
+import {isEqual} from 'lodash';
 
 const index = () => {
   const [listProducts, setListProducts] = useState([]);
   const [listColor, setListColor] = useState([]);
+  const [listChange, setListChange] = useState([]);
+  const editModalRef = useRef(null);
+  const submitModalRef = useRef(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     getProduct();
     getColor();
   }, []);
@@ -32,6 +38,12 @@ const index = () => {
       const colors = res.data;
       setListColor(colors);
     });
+  };
+
+  const onPressEdit = item => {
+    editModalRef?.current?.show();
+    editModalRef?.current?.saveItem(item);
+    editModalRef?.current?.saveListColor(listColor);
   };
 
   const getColorName = id => {
@@ -58,7 +70,11 @@ const index = () => {
           <Text>{item?.sku}</Text>
           <Text>{getColorName(item?.color)}</Text>
         </View>
-        <TouchableOpacity style={styles.containerEditButton}>
+        <TouchableOpacity
+          style={styles.containerEditButton}
+          onPress={() => {
+            onPressEdit(item);
+          }}>
           <Image
             source={require('../assets/icon-edit.png')}
             style={styles.imageItemEdit}
@@ -66,6 +82,23 @@ const index = () => {
         </TouchableOpacity>
       </View>
     );
+  };
+
+  const handleEditProduct = itemObj => {
+    let listProductsTemp = [...listProducts];
+    const objIndex = listProductsTemp.findIndex(obj => obj.id == itemObj.id);
+    listProductsTemp[objIndex] = itemObj;
+    setListProducts(listProductsTemp);
+    let listChangeTemp = [...listChange];
+    if (!isEqual(itemObj, listProducts[objIndex])) {
+      listChangeTemp.push(itemObj);
+      setListChange(listChangeTemp);
+    }
+  };
+
+  const onPressSubmit = () => {
+    submitModalRef?.current?.show();
+    submitModalRef?.current?.saveList(listChange);
   };
 
   return (
@@ -81,10 +114,16 @@ const index = () => {
       />
 
       <View style={styles.containerBtnSubmit}>
-        <TouchableOpacity style={styles.btnSubmit}>
+        <TouchableOpacity
+          style={listChange.length > 0 ? styles.btnSubmit : styles.btnDisable}
+          onPress={onPressSubmit}
+          disabled={!listChange.length > 0}>
           <Text style={{color: '#fff', fontWeight: '600'}}>SUBMIT</Text>
         </TouchableOpacity>
       </View>
+
+      <EditModal ref={editModalRef} handleEditProduct={handleEditProduct} />
+      <SubmitModal ref={submitModalRef} />
     </View>
   );
 };
@@ -118,11 +157,12 @@ const styles = StyleSheet.create({
   imageItem: {
     width: '100%',
     height: '100%',
-    resizeMode: 'contain',
+    resizeMode: 'cover',
   },
   imageItemError: {
     width: '70%',
     height: '70%',
+    resizeMode: 'contain',
   },
   containerImageItem: {
     width: 100,
@@ -156,6 +196,15 @@ const styles = StyleSheet.create({
   btnSubmit: {
     flex: 1,
     backgroundColor: 'pink',
+    marginHorizontal: 16,
+    marginVertical: 5,
+    borderRadius: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  btnDisable: {
+    flex: 1,
+    backgroundColor: 'gray',
     marginHorizontal: 16,
     marginVertical: 5,
     borderRadius: 5,
