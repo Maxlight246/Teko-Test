@@ -18,6 +18,7 @@ const index = () => {
   const [listChange, setListChange] = useState([]);
   const editModalRef = useRef(null);
   const submitModalRef = useRef(null);
+  const validate = useRef(true);
 
   useEffect(() => {
     getProduct();
@@ -90,6 +91,14 @@ const index = () => {
     listProductsTemp[objIndex] = itemObj;
     setListProducts(listProductsTemp);
     let listChangeTemp = [...listChange];
+
+    //check obj already exist in listChange
+    const objIndex2 = listChangeTemp.findIndex(obj => obj.id == itemObj.id);
+    if (objIndex2 >= 0) {
+      listChangeTemp[objIndex2] = itemObj;
+      setListChange(listChangeTemp);
+      return;
+    }
     if (!isEqual(itemObj, listProducts[objIndex])) {
       listChangeTemp.push(itemObj);
       setListChange(listChangeTemp);
@@ -99,6 +108,28 @@ const index = () => {
   const onPressSubmit = () => {
     submitModalRef?.current?.show();
     submitModalRef?.current?.saveList(listChange);
+    submitModalRef?.current?.saveListColor(listColor);
+  };
+
+  const handleSubmit = () => {
+    for (let i = 0; i < listChange.length; i++) {
+      if (
+        !listChange[i]?.sku ||
+        !listChange[i]?.name ||
+        listChange[i]?.name.trim().length > 50 ||
+        listChange[i]?.sku.trim().length > 20
+      ) {
+        alert(`${listChange[i]?.errorDescription} not match validate`);
+        validate.current = false;
+        break;
+      } else {
+        validate.current = true;
+      }
+    }
+    if (validate.current) {
+      setListChange([]);
+      submitModalRef?.current?.hide();
+    }
   };
 
   return (
@@ -123,7 +154,7 @@ const index = () => {
       </View>
 
       <EditModal ref={editModalRef} handleEditProduct={handleEditProduct} />
-      <SubmitModal ref={submitModalRef} />
+      <SubmitModal ref={submitModalRef} handleSubmit={handleSubmit} />
     </View>
   );
 };
@@ -133,7 +164,7 @@ export default index;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'gray',
+    backgroundColor: 'white',
   },
   containerItem: {
     flexDirection: 'row',
@@ -144,15 +175,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 5,
     backgroundColor: '#fff',
-    // shadowColor: '#000',
-    // shadowOffset: {
-    //   width: 0,
-    //   height: 2,
-    // },
-    // shadowOpacity: 0.25,
-    // shadowRadius: 3.84,
-
-    // elevation: 5,
+    borderWidth: 1,
+    boderColor: 'gray',
   },
   imageItem: {
     width: '100%',
