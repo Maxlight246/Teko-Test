@@ -10,35 +10,53 @@ import React, {useState, useEffect, useRef} from 'react';
 import axios from 'axios';
 import EditModal from './EditModal';
 import SubmitModal from './SubmitModal';
-import {isEqual} from 'lodash';
+import {isEqual, chunk} from 'lodash';
+import {getAllProduct, getColor} from '../api/productApi';
 
 const index = () => {
+  const [listAllProducts, setListAllProducts] = useState([]);
   const [listProducts, setListProducts] = useState([]);
   const [listColor, setListColor] = useState([]);
   const [listChange, setListChange] = useState([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isLoadMore, setIsLoadMore] = useState(true);
   const editModalRef = useRef(null);
   const submitModalRef = useRef(null);
   const validate = useRef(true);
 
   useEffect(() => {
-    getProduct();
-    getColor();
+    getAllProducts();
+    getColors();
   }, []);
 
-  const getProduct = () => {
-    axios
-      .get(`https://hiring-test.stag.tekoapis.net/api/products`)
-      .then(res => {
-        const products = res.data;
-        setListProducts(products);
-      });
+  const getAllProducts = async () => {
+    const products = await getAllProduct();
+    if (products) {
+      const productsFormat = chunk(products, 10);
+      setListAllProducts(productsFormat);
+      getProducts(productsFormat);
+    }
   };
 
-  const getColor = () => {
-    axios.get(`https://hiring-test.stag.tekoapis.net/api/colors`).then(res => {
-      const colors = res.data;
-      setListColor(colors);
-    });
+  const getProducts = productsFormat => {
+    const res =
+      listAllProducts.length > 0
+        ? listAllProducts[currentPage]
+        : productsFormat[currentPage];
+    if (res && res.length >= 10) {
+      setCurrentPage(currentPage + 1);
+      setListProducts([...listProducts, ...res]);
+    } else if (res && res.length < 10) {
+      setListProducts([...listProducts, ...res]);
+      setIsLoadMore(false);
+    } else {
+      setIsLoadMore(false);
+    }
+  };
+
+  const getColors = async () => {
+    const colors = await getColor();
+    setListColor(colors || []);
   };
 
   const onPressEdit = item => {
@@ -90,9 +108,9 @@ const index = () => {
     const objIndex = listProductsTemp.findIndex(obj => obj.id == itemObj.id);
     listProductsTemp[objIndex] = itemObj;
     setListProducts(listProductsTemp);
-    let listChangeTemp = [...listChange];
 
     //check obj already exist in listChange
+    let listChangeTemp = [...listChange];
     const objIndex2 = listChangeTemp.findIndex(obj => obj.id == itemObj.id);
     if (objIndex2 >= 0) {
       listChangeTemp[objIndex2] = itemObj;
@@ -129,7 +147,25 @@ const index = () => {
     if (validate.current) {
       setListChange([]);
       submitModalRef?.current?.hide();
+      alert('Submit Success');
     }
+  };
+
+  const renderFooter = () => {
+    return (
+      //Footer View with Load More button
+      <View style={styles.footer}>
+        {isLoadMore && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={getProducts}
+            //On Click of button load more data
+            style={styles.loadMoreBtn}>
+            <Text style={styles.btnText}>Load More</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -142,6 +178,7 @@ const index = () => {
         renderItem={renderItemProduct}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{paddingBottom: 50}}
+        ListFooterComponent={renderFooter}
       />
 
       <View style={styles.containerBtnSubmit}>
@@ -149,7 +186,11 @@ const index = () => {
           style={listChange.length > 0 ? styles.btnSubmit : styles.btnDisable}
           onPress={onPressSubmit}
           disabled={!listChange.length > 0}>
-          <Text style={{color: '#fff', fontWeight: '600'}}>SUBMIT</Text>
+          <Text
+            style={{
+              color: '#fff',
+              fontWeight: '600',
+            }}>{`SUBMIT(${listChange.length})`}</Text>
         </TouchableOpacity>
       </View>
 
@@ -234,5 +275,24 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  footer: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  loadMoreBtn: {
+    padding: 10,
+    backgroundColor: '#800000',
+    borderRadius: 4,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  btnText: {
+    color: 'white',
+    fontSize: 15,
+    textAlign: 'center',
   },
 });
